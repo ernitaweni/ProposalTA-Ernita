@@ -1,0 +1,28 @@
+\begin{center}
+  \large\textbf{ABSTRAK}
+\end{center}
+
+\addcontentsline{toc}{chapter}{ABSTRAK}
+
+\vspace{2ex}
+
+\begingroup
+% Menghilangkan padding
+\setlength{\tabcolsep}{0pt}
+
+\noindent
+\begin{tabularx}{\textwidth}{l >{\centering}m{2em} X}
+  Nama Mahasiswa    & : & \name{}         \\
+
+  Judul Tugas Akhir & : & \tatitle{}      \\
+
+  Pembimbing        & : & 1. \advisor{}   \\
+                    &   & 2. \coadvisor{} \\
+\end{tabularx} 
+\endgroup
+
+% Ubah paragraf berikut dengan abstrak dari tugas akhir
+Analitik video \textit{Closed-Circuit Television} (CCTV) umumnya mengandalkan detektor objek seperti \textit{You Only Look Once} (YOLO) yang cepat. Detektor dapat dilatih untuk membedakan pegawai dan pelanggan, tetapi memerlukan data berlabel dari setiap tempat usaha dan pelatihan ulang ketika kondisi berubah. \textit{Vision-Language Model} (VLM) berpotensi membedakan peran tersebut secara \textit{zero-shot} melalui instruksi teks tanpa pelatihan khusus, namun membutuhkan memori GPU yang besar, sedangkan kuantisasi untuk menghemat memori berpotensi meningkatkan halusinasi objek. Penelitian ini mengevaluasi empat VLM terbuka, yaitu Moondream2, PaliGemma 2, Qwen2.5-VL, dan InternVL 2.5, pada tiga tingkat presisi (BF16, INT8, dan NF4) di satu GPU NVIDIA GeForce RTX 5060 8 GB dengan detektor dan pelacak YOLO11n dan ByteTrack yang sama untuk semua model. Penelitian menggunakan pendekatan eksperimental komparatif dengan desain faktorial $4 \times 3$, yaitu dua belas konfigurasi tanpa pelatihan ulang. Pengujian dilakukan melalui tiga skenario, yaitu uji memori dan latensi, uji halusinasi objek dengan protokol \textit{Polling-based Object Probing Evaluation} (POPE), dan uji klasifikasi peran pegawai dan pelanggan. Hasil penelitian diharapkan menjadi dasar pemilihan VLM dan tingkat presisi yang paling stabil pada GPU berkapasitas memori terbatas untuk analitik CCTV.
+
+% Ubah kata-kata berikut dengan kata kunci dari tugas akhir
+Kata Kunci: Analitik Video CCTV, Klasifikasi Peran, Kuantisasi, \textit{Vision-Language Model}.

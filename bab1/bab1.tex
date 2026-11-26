@@ -1,0 +1,58 @@
+\begin{spacing}{1.2}
+  \chapter{PENDAHULUAN}
+\end{spacing}
+
+%\pagenumbering{arabic}
+
+\vspace{4ex}
+\section{Latar Belakang} 
+Dalam beberapa tahun terakhir, visi komputer mulai beralih dari model yang dibuat untuk satu tugas ke \textit{vision-language model} (VLM), yaitu model yang memahami citra sekaligus bahasa. VLM dilatih dengan pasangan citra dan teks dalam jumlah sangat besar dari internet, sehingga satu model dapat melakukan prediksi \textit{zero-shot} pada banyak tugas visual tanpa dilatih ulang untuk tiap tugas \cite{ref6}. Perkembangan serupa terjadi pada model sumber terbuka: skor rerata OpenCompass InternVL2.5 naik dari 54,9 pada 1 miliar parameter menjadi 68,1 pada 8 miliar parameter \cite{ref29}. Kemampuan ini membuka peluang penggunaan VLM pada analitik video. Namun, ukuran model yang makin besar juga menaikkan kebutuhan sumber daya komputasi.
+
+Analitik video selama ini banyak bertumpu pada detektor objek seperti \textit{You Only Look Once} (YOLO), yaitu model yang memprediksi lokasi dan kelas objek dalam satu kali proses dan telah diterapkan pada robotika, kendaraan otonom, serta pemantauan video secara \textit{real time} \cite{ref2}. Pada setiap \textit{frame}, detektor menghasilkan kotak deteksi dan label kelas, lalu pelacak menghubungkan hasilnya menjadi jalur gerak setiap orang. Detektor juga dapat dilatih untuk membedakan pegawai dan pelanggan, tetapi memerlukan data berlabel dari setiap tempat usaha dan pelatihan ulang ketika seragam, tata letak, atau kelas berubah. VLM menawarkan alternatif karena tugas dapat ditentukan melalui instruksi teks tanpa pelatihan khusus \cite{ref6}, tetapi membutuhkan komputasi yang jauh lebih besar daripada detektor. Dengan demikian, kedua pendekatan dapat saling melengkapi: detektor menemukan orang dengan biaya komputasi rendah, sedangkan VLM menentukan perannya.
+
+Kebutuhan akan pemahaman konteks tersebut juga terlihat pada tempat usaha yang memakai CCTV untuk memantau lokasinya. Kamera pengawas menghasilkan rekaman dalam jumlah besar yang tidak praktis dianalisis secara manual, terutama secara \textit{real time} \cite{ref28}. Survei terhadap 66 perusahaan ritel menunjukkan bahwa pencurian di toko (\textit{shoplifting}) turun 12,4\% pada 2025 dibandingkan 2024, tetapi 50\% peritel mencatat lebih banyak pelaku berulang, 40\% lebih banyak kejahatan ritel terorganisir, dan 69\% lebih banyak penipuan telepon \cite{ref38}. Perubahan ini dapat menuntut pemantauan yang memahami konteks, bukan sekadar menghitung orang. Analitik tempat usaha seperti menghitung pengunjung atau mengukur antrean pun hanya bermakna jika pegawai sudah dipisahkan dari pelanggan, karena pegawai yang ikut terhitung akan menambah jumlah pengunjung secara keliru.
+
+Namun, tempat usaha lebih mungkin memakai perangkat yang murah dan hemat daya di setiap lokasi, sehingga sumber daya, terutama memori GPU, menjadi kendala bagi VLM. Perangkat berkapasitas terbatas memiliki keterbatasan dalam daya pemrosesan, memori, dan energi sehingga model perlu diperkecil melalui kuantisasi, pemangkasan, atau distilasi \cite{ref14}. Bobot BF16 model 7 miliar parameter menempati sekitar 16 GB dan model 3 miliar sekitar 8 GB, sehingga model 7 miliar tidak muat pada GPU 8 GB tanpa kuantisasi \cite{ref32}. Selain memori, pembangkitan teks autoregresif menyumbang lebih dari 85\% latensi keseluruhan VLM pada GPU berkapasitas terbatas \cite{ref24}. Kuantisasi menurunkan kebutuhan memori, tetapi dampaknya pada keandalan perlu diuji, terutama halusinasi objek, yaitu menyebut objek yang tidak ada pada gambar \cite{ref9}, yang pada CCTV berarti alarm palsu.
+
+Beberapa penelitian terdahulu telah memakai VLM yang serupa. Farhan dkk. \cite{ref31} memakai Moondream2 bersama YOLO11m untuk mendeskripsikan insiden jalan raya dari video \textit{drone} tanpa mengukur mutu deskripsinya secara kuantitatif. Zheng dkk. \cite{ref32} melakukan \textit{fine-tuning} pada Qwen2.5-VL 3B dan 7B, PaliGemma-3B generasi pertama, serta dua model lain untuk tugas keselamatan rumah pintar, dan \textit{fine-tuning} LoRA menaikkan akurasi rerata dari 61,1\% menjadi 78,9\%. Z. Chen dkk. \cite{ref29} mengukur kinerja InternVL2.5 pada \textit{benchmark} umum, sedangkan Ahmad dkk. \cite{ref24} menguji LLaMA-3.2 11B berkuantisasi NF4 dan Qwen2-VL 2B pada GPU NVIDIA L4 untuk persepsi robot. Tidak satu pun studi tersebut membandingkan beberapa VLM pada beberapa tingkat presisi untuk CCTV tempat usaha.
+
+Berdasarkan penelusuran literatur penulis, belum ditemukan studi yang membandingkan beberapa VLM terbuka pada beberapa tingkat presisi (BF16, INT8, NF4) di GPU berkapasitas memori terbatas, sekaligus mengukur memori, latensi, halusinasi objek, dan klasifikasi peran pegawai dan pelanggan, sehingga hal ini menjadi celah penelitian (\textit{research gap}). Kebaruan penelitian ini adalah pengujian empat VLM, yaitu Moondream2, PaliGemma 2, Qwen2.5-VL, dan InternVL 2.5, pada satu GPU 8 GB dengan detektor dan pelacak yang sama untuk semua model. Pengelola CCTV memerlukan dasar untuk memilih model dan presisi yang mempertimbangkan memori, latensi, dan keandalan sebelum membeli perangkat, sedangkan hasil \textit{benchmark} umum belum tentu mewakili kondisi tempat usaha. Berdasarkan uraian tersebut, penelitian ini mengevaluasi empat VLM terbuka pada tiga tingkat presisi di GPU memori terbatas untuk klasifikasi peran pegawai dan pelanggan dari rekaman CCTV tempat usaha, yaitu tugas yang akurasinya dapat diukur dengan label. Tujuannya adalah menentukan konfigurasi yang paling sesuai berdasarkan kebutuhan memori, latensi, keandalan, dan akurasi klasifikasi peran.
+
+\section{Rumusan Masalah}
+Berdasarkan latar belakang tersebut, rumusan masalah penelitian ini adalah sebagai berikut.
+\begin{enumerate} [topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+  \item VLM manakah yang paling stabil dijalankan pada presisi BF16, INT8, dan NF4 pada GPU berkapasitas memori 8 GB?
+  \item Bagaimana tingkat halusinasi objek VLM pada presisi BF16, INT8, dan NF4 berdasarkan protokol POPE pada citra CCTV tempat usaha?
+  \item Seberapa akurat VLM pada presisi BF16, INT8, dan NF4 mengklasifikasikan pegawai dan pelanggan?
+\end{enumerate}
+
+\section{Batasan Masalah}
+Ruang lingkup penelitian ini dibatasi sebagai berikut.
+\begin{enumerate} [topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+  \item Model dibatasi pada Moondream2, PaliGemma 2, Qwen2.5-VL, dan InternVL 2.5.
+  \item Presisi yang diuji hanya BF16 sebagai presisi asli (acuan) serta INT8 dan NF4 sebagai presisi terkuantisasi.
+  \item Perangkat berkapasitas terbatas berupa satu GPU NVIDIA RTX 5060 8 GB.\end{enumerate}
+
+\newpage
+\section{Tujuan}
+Tujuan umum penelitian ini adalah mengevaluasi secara komparatif VLM terbuka pada berbagai tingkat kuantisasi untuk klasifikasi pegawai dan pelanggan dari rekaman CCTV pada GPU berkapasitas memori terbatas. Secara khusus, penelitian ini bertujuan:
+\begin{enumerate} [topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+  \item menentukan VLM yang paling stabil dijalankan pada presisi BF16, INT8, dan NF4 pada GPU berkapasitas memori 8 GB;
+  \item mengukur tingkat halusinasi objek setiap konfigurasi dengan protokol POPE pada citra CCTV tempat usaha; dan
+  \item menilai akurasi klasifikasi peran pegawai dan pelanggan oleh setiap VLM pada setiap tingkat presisi.
+\end{enumerate}
+
+\section{Manfaat}
+\begin{enumerate}[label=\alph*., topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+  \item Manfaat Teoretis. Penelitian ini diharapkan:
+  \begin{enumerate}[label=\arabic*., topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+    \item Memberi bukti dampak kuantisasi terhadap sumber daya dan keandalan VLM.
+    \item Menyediakan rancangan pengujian yang dapat menjadi rujukan penelitian sejenis.
+  \end{enumerate}
+
+  \item Manfaat Praktis. Hasil penelitian ini diharapkan:
+  \begin{enumerate}[label=\arabic*., topsep=0pt, itemsep=0pt, partopsep=0pt, parsep=0pt]
+    \item Memberikan dasar pemilihan VLM dan presisi bagi pengelola CCTV.
+    \item Membantu menentukan konfigurasi VLM yang dapat dijalankan pada perangkat berkapasitas terbatas.
+  \end{enumerate}
+\end{enumerate}

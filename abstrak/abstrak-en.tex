@@ -1,0 +1,29 @@
+\begin{center}
+  \large\textbf{ABSTRACT}
+\end{center}
+
+\addcontentsline{toc}{chapter}{ABSTRACT}
+
+\vspace{2ex}
+
+\begingroup
+% Menghilangkan padding
+\setlength{\tabcolsep}{0pt}
+
+\noindent
+\begin{tabularx}{\textwidth}{l >{\centering}m{3em} X}
+  \emph{Name}     & : & \name{}         \\
+
+  \emph{Title}    & : & \engtatitle{}   \\
+
+  \emph{Advisors} & : & 1. \advisor{}   \\
+                  &   & 2. \coadvisor{} \\
+\end{tabularx}
+\endgroup
+
+% Ubah paragraf berikut dengan abstrak dari tugas akhir dalam Bahasa Inggris
+\emph{
+  Closed-Circuit Television (CCTV) video analytics commonly relies on object detectors such as You Only Look Once (YOLO), which are fast. Detectors can be trained to distinguish employees from customers, but this requires labeled data from each business premises and retraining when conditions change. Vision-Language Models (VLMs) can potentially distinguish these roles in a zero-shot manner through text instructions without dedicated training, but they require large GPU memory, while quantization used to save memory may increase object hallucination. This research evaluates four open VLMs, namely Moondream2, PaliGemma 2, Qwen2.5-VL, and InternVL 2.5, at three precision levels (BF16, INT8, and NF4) on a single NVIDIA GeForce RTX 5060 8 GB GPU, with the same YOLO11n detector and ByteTrack tracker for all models. The research adopts a comparative experimental approach with a $4 \times 3$ factorial design, yielding twelve configurations without retraining. Testing is carried out in three scenarios, namely a memory and latency test, an object hallucination test using the Polling-based Object Probing Evaluation (POPE) protocol, and a role classification test for employees and customers. The results are expected to serve as a basis for selecting the most stable VLM and precision level on memory-constrained GPUs for CCTV analytics.}
+
+% Ubah kata-kata berikut dengan kata kunci dari tugas akhir dalam Bahasa Inggris
+\emph{Keywords}: \emph{CCTV Video Analytics, Quantization, Role Classification, Vision-Language Model}
