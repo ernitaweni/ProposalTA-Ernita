@@ -45,11 +45,16 @@ Variabel penelitian ditetapkan berdasarkan rumusan masalah dan landasan teori pa
     \hline
     3 & Dataset uji & \textit{Frame} yang sama untuk semua konfigurasi & -- \\
     \hline
-    4 & \textit{Prompt} kueri & Templat yang sama untuk semua model & -- \\
+    % REVISI R7 (semula): 4 & \textit{Prompt} kueri & Templat yang sama untuk semua model & -- \\
+    4 & \textit{Prompt} kueri & Templat berbahasa Inggris yang sama untuk semua model & -- \\
     \hline
-    5 & Resolusi masukan VLM & Dibatasi seragam & -- \\
+    % REVISI R7 (semula): 5 & Resolusi masukan VLM & Dibatasi seragam & -- \\
+    5 & Resolusi masukan VLM & Ditetapkan per model (Tabel \ref{tab:resolusi}) & -- \\
     \hline
     6 & Pengaturan pembangkitan & \textit{Greedy}, \textit{batch} 1, token keluaran dibatasi & -- \\
+    \hline
+    % REVISI R7: baris aturan parsing jawaban ditambahkan
+    7 & Aturan \textit{parsing} jawaban & Sama untuk semua model (Subbab \ref{sec:skenario}) & -- \\
     \hline
 \end{longtable}
 }
@@ -111,12 +116,65 @@ Peralatan penelitian dipilih untuk merepresentasikan perangkat berkapasitas terb
     \hline
     10 & CVAT / Label Studio & Anotasi objek dan peran \\
     \hline
+    % REVISI R7: Accelerate ditambahkan untuk acuan BF16 dengan CPU offload
+    11 & Hugging Face \textit{Accelerate} & Pemuatan BF16 dengan \textit{CPU offload} untuk acuan mutu \\
+    \hline
     \end{tabular}
 \end{table}
 
 \section{Diagram Alir Penelitian}
-Tahapan penelitian disusun secara berurutan mulai dari studi literatur hingga penarikan kesimpulan, sebagaimana ditunjukkan pada Gambar \ref{fig:flowchart}. Setelah data dan komponen deteksi YOLO11n disiapkan, setiap konfigurasi model dan presisi diuji satu per satu pada GPU uji. Apabila suatu konfigurasi mengalami OOM, kondisi tersebut dicatat sebagai hasil bahwa konfigurasi tidak stabil, lalu pengujian berlanjut ke konfigurasi berikutnya. Konfigurasi yang berhasil dimuat dilanjutkan ke pengujian memori dan latensi, halusinasi, serta klasifikasi peran. Setelah seluruh konfigurasi selesai diuji, hasilnya dianalisis secara komparatif untuk menarik kesimpulan.
+% REVISI R7 (semula): Apabila suatu konfigurasi mengalami OOM, kondisi tersebut dicatat sebagai hasil bahwa konfigurasi tidak stabil, lalu pengujian berlanjut ke konfigurasi berikutnya. Konfigurasi yang berhasil dimuat dilanjutkan ke pengujian memori dan latensi, halusinasi, serta klasifikasi peran.
+Tahapan penelitian disusun secara berurutan mulai dari studi literatur hingga penarikan kesimpulan, sebagaimana ditunjukkan pada Gambar \ref{fig:flowchart}. Setelah data dan komponen deteksi YOLO11n disiapkan, setiap konfigurasi model dan presisi diuji satu per satu pada GPU uji. Setiap konfigurasi terlebih dahulu menjalani Skenario 1 untuk mengukur memori puncak, status OOM, dan latensi. Konfigurasi yang stabil dilanjutkan ke pengujian halusinasi dan klasifikasi peran. Konfigurasi yang tidak stabil dicatat sebagai hasil; jika presisinya BF16, konfigurasi tersebut tetap dijalankan dengan \textit{CPU offload} pada Skenario 2 dan 3 sebagai acuan mutu, sedangkan konfigurasi terkuantisasi yang tidak stabil tidak diuji lebih lanjut. Setelah seluruh konfigurasi selesai diuji, hasilnya dianalisis secara komparatif untuk menarik kesimpulan.
 
+\begin{figure}[htbp]
+    \centering
+    \resizebox{!}{0.62\textheight}{%
+    \begin{tikzpicture}[node distance=0.45cm,
+        term/.style={draw, rounded corners=10pt, minimum height=0.8cm, text width=2.6cm, align=center, font=\small},
+        proses/.style={draw, minimum height=0.8cm, text width=5.2cm, align=center, font=\small},
+        cek/.style={draw, diamond, aspect=2.4, inner sep=1pt, text width=2.8cm, align=center, font=\small},
+        panah/.style={-{Stealth[length=2.5mm]}, thick}]
+        \node[term] (mulai) {Mulai};
+        \node[proses, below=of mulai] (lit) {Studi literatur};
+        \node[proses, below=of lit] (data) {Pengumpulan dan anotasi data CCTV};
+        \node[proses, below=of data] (yolo) {Deteksi dan pelacakan orang: YOLO11n + ByteTrack};
+        \node[proses, below=of yolo] (kuant) {Persiapan model: BF16, INT8, NF4 (12 konfigurasi)};
+        \node[proses, below=of kuant] (pilih) {Pilih konfigurasi model--presisi berikutnya};
+        \node[proses, below=of pilih] (muat) {Muat VLM pada RTX 5060 8 GB};
+        \node[proses, below=of muat] (s1) {Skenario 1: ukur memori puncak, OOM, dan latensi};
+        \node[cek, below=of s1] (stabil) {Stabil? (tanpa OOM, memori $\le$ 90\% VRAM)};
+        \node[proses, below=of stabil] (uji) {Skenario 2 dan 3: halusinasi (POPE) dan klasifikasi peran};
+        \node[cek, below=1.8cm of uji] (semua) {Semua konfigurasi\\selesai?};
+        \node[proses, below=of semua] (analisis) {Analisis komparatif dan penarikan kesimpulan};
+        \node[term, below=of analisis] (selesai) {Selesai};
+        % Cabang konfigurasi tidak stabil
+        \node[proses, right=1.3cm of stabil, text width=3.2cm] (catat) {Catat tidak stabil};
+        \node[cek, below=of catat, text width=1.8cm] (bf16) {Presisi BF16?};
+        \node[proses, below=of bf16, text width=3.2cm] (offload) {Skenario 2 dan 3 dengan \textit{CPU offload} (acuan mutu)};
+        \draw[panah] (mulai) -- (lit);
+        \draw[panah] (lit) -- (data);
+        \draw[panah] (data) -- (yolo);
+        \draw[panah] (yolo) -- (kuant);
+        \draw[panah] (kuant) -- (pilih);
+        \draw[panah] (pilih) -- (muat);
+        \draw[panah] (muat) -- (s1);
+        \draw[panah] (s1) -- (stabil);
+        \draw[panah] (stabil) -- node[left, font=\small] {Ya} (uji);
+        \draw[panah] (stabil) -- node[above, font=\small] {Tidak} (catat);
+        \draw[panah] (catat) -- (bf16);
+        \draw[panah] (bf16) -- node[left, font=\small] {Ya} (offload);
+        \draw[panah] (bf16.east) -- node[above, font=\small] {Tidak} ++(0.9,0) |- (semua.east);
+        \draw[panah] (offload.south) |- (semua.east);
+        \draw[panah] (uji) -- (semua);
+        \draw[panah] (semua.west) -- node[above, font=\small] {Tidak} ++(-1.2,0) |- (pilih.west);
+        \draw[panah] (semua) -- node[left, font=\small] {Ya} (analisis);
+        \draw[panah] (analisis) -- (selesai);
+    \end{tikzpicture}}
+    \caption{Diagram Alir Penelitian}
+    \label{fig:flowchart}
+\end{figure}
+
+\iffalse % REVISI R7 (semula): diagram alir lama, sebelum ada cabang acuan BF16 dengan CPU offload
 \begin{figure}[htbp]
     \centering
     \resizebox{!}{0.62\textheight}{%
@@ -154,8 +212,9 @@ Tahapan penelitian disusun secara berurutan mulai dari studi literatur hingga pe
         \draw[panah] (analisis) -- (selesai);
     \end{tikzpicture}}
     \caption{Diagram Alir Penelitian}
-    \label{fig:flowchart}
+    \label{fig:flowchart-lama}
 \end{figure}
+\fi
 
 \section{Rancangan Sistem}
 Sistem yang diuji terdiri atas dua lapisan, yaitu lapisan deteksi dan pelacakan serta lapisan penalaran semantik, sebagaimana ditunjukkan pada Gambar \ref{fig:arsitektur}. Lapisan deteksi menjalankan YOLO11n dan ByteTrack pada \textit{frame} uji untuk menghasilkan kotak deteksi beserta identitas lintasan setiap orang, yang kemudian dipotong menjadi \textit{crop} sebagai masukan VLM. Lapisan penalaran semantik berupa VLM yang menerima \textit{crop} atau \textit{frame} beserta kueri VQA dan menjawab dalam bentuk teks. Komponen deteksi dan pelacakan dibuat tetap, sedangkan VLM divariasikan dalam arsitektur dan tingkat presisinya sehingga perbedaan hasil dapat dikaitkan dengan kedua faktor tersebut.
@@ -187,9 +246,11 @@ Penelitian ini tidak melatih model sehingga data yang dikumpulkan berfungsi seba
 
 Anotasi dilakukan secara manual dan mencakup dua jenis label yang disesuaikan dengan kebutuhan setiap skenario pengujian. Pertama, anotasi keberadaan objek berupa daftar kategori objek yang terdapat pada setiap \textit{frame}, seperti orang, tas, keranjang belanja, ponsel, dan mesin kasir, yang menjadi dasar penyusunan kueri POPE. Kedua, anotasi peran berupa label pegawai atau pelanggan untuk setiap orang yang terdeteksi, yang menjadi \textit{ground truth} skenario klasifikasi peran.
 
-Kueri POPE disusun dari anotasi keberadaan objek mengikuti protokol yang dijelaskan pada Bab II. Setiap \textit{frame} menghasilkan tiga kueri positif dari objek yang ada dan tiga kueri negatif dari objek yang tidak ada untuk masing-masing strategi \textit{random}, \textit{popular}, dan \textit{adversarial}. Dengan 250 \textit{frame}, rancangan ini menghasilkan sekitar 4.500 kueri biner untuk setiap konfigurasi model, dan jumlah tersebut dapat disesuaikan dengan ketersediaan objek pada data. Seluruh kueri menggunakan templat yang sama, yaitu ``Apakah terdapat \textless objek\textgreater{} pada gambar ini? Jawab hanya dengan Ya atau Tidak.'' dalam bahasa yang sama untuk semua model. Keseragaman templat ini menjadi variabel kontrol agar perbedaan OHR tidak disebabkan oleh perbedaan \textit{prompt}.
+% REVISI R7 (semula, kalimat templat): Seluruh kueri menggunakan templat yang sama, yaitu ``Apakah terdapat \textless objek\textgreater{} pada gambar ini? Jawab hanya dengan Ya atau Tidak.'' dalam bahasa yang sama untuk semua model.
+Kueri POPE disusun dari anotasi keberadaan objek mengikuti protokol yang dijelaskan pada Bab II. Setiap \textit{frame} menghasilkan tiga kueri positif dari objek yang ada dan tiga kueri negatif dari objek yang tidak ada untuk masing-masing strategi \textit{random}, \textit{popular}, dan \textit{adversarial}. Dengan 250 \textit{frame}, rancangan ini menghasilkan sekitar 4.500 kueri biner untuk setiap konfigurasi model, dan jumlah tersebut dapat disesuaikan dengan ketersediaan objek pada data. Seluruh kueri menggunakan templat berbahasa Inggris yang sama, yaitu ``\textit{Is there a \textless object\textgreater{} in the image? Answer with Yes or No only.}'' Bahasa Inggris dipilih karena Moondream2 praktis hanya dilatih dengan teks berbahasa Inggris dan protokol POPE aslinya juga berbahasa Inggris \cite{ref9}, sehingga perbedaan OHR antarmodel tidak dipengaruhi oleh kemampuan bahasa. Isi pertanyaan dibungkus sesuai format masukan bawaan setiap model, yaitu awalan tugas \texttt{answer en} pada PaliGemma 2, \textit{chat template} pada Qwen2.5-VL dan InternVL2.5, serta fungsi kueri bawaan Moondream2, tanpa mengubah isi pertanyaannya. Keseragaman templat ini menjadi variabel kontrol agar perbedaan OHR tidak disebabkan oleh perbedaan \textit{prompt}.
 
 \section{Persiapan dan Kuantisasi Model}
+\label{sec:persiapan}
 Keempat VLM diunduh dalam bentuk \textit{pretrained} dari repositori resminya dan digunakan tanpa \textit{fine-tuning}. Untuk PaliGemma 2 digunakan varian \textit{mix} yang telah dilatih pada campuran tugas, sedangkan untuk Qwen2.5-VL digunakan varian \textit{Instruct}, agar seluruh model dapat langsung menjawab kueri VQA. Setiap model disiapkan dalam tiga tingkat presisi, yaitu BF16 sebagai presisi asli tanpa kuantisasi, INT8 menggunakan LLM.int8(), dan NF4 menggunakan QLoRA, yang keduanya tersedia melalui pustaka \textit{bitsandbytes}. Kuantisasi diterapkan pada LLM yang merupakan komponen terbesar, sedangkan enkoder visual dan proyektor dipertahankan pada presisi asli untuk menjaga kualitas fitur visual. Kuantisasi bersifat pasca-pelatihan sehingga tidak memerlukan data kalibrasi maupun pelatihan ulang. Kedua belas konfigurasi yang dihasilkan disajikan pada Tabel \ref{tab:konfigurasi}.
 
 \begin{table}[htbp]
@@ -212,8 +273,39 @@ Keempat VLM diunduh dalam bentuk \textit{pretrained} dari repositori resminya da
     \end{tabular}
 \end{table}
 
+% REVISI R7: paragraf pengaturan kuantisasi, acuan BF16, dan tabel resolusi ditambahkan
+Pengaturan kuantisasi ditetapkan secara eksplisit melalui \texttt{BitsAndBytesConfig} pada pustaka \textit{Transformers}. Enkoder visual, proyektor, dan lapisan keluaran (\texttt{lm\_head}) dikecualikan dari kuantisasi melalui parameter \texttt{llm\_int8\_skip\_modules}, yang berlaku untuk INT8 maupun NF4. Nama modul berbeda pada setiap model, misalnya \texttt{vision\_tower} dan \texttt{multi\_modal\_projector} pada PaliGemma 2, \texttt{visual} pada Qwen2.5-VL, serta \texttt{vision\_model} dan \texttt{mlp1} pada InternVL2.5. Oleh karena itu, daftar modul ditentukan dari struktur setiap model dan diverifikasi setelah pemuatan dengan memastikan tidak ada lapisan terkuantisasi di luar LLM. INT8 menggunakan ambang \textit{outlier} bawaan LLM.int8() (\texttt{llm\_int8\_threshold} = 6,0), sedangkan NF4 menggunakan \textit{double quantization} dan tipe komputasi BF16 (\texttt{bnb\_4bit\_use\_double\_quant} = \texttt{True} dan \texttt{bnb\_4bit\_compute\_dtype} = \texttt{bfloat16}) sesuai metode QLoRA \cite{ref35}. Sebelum pengujian penuh, setiap model diuji coba dimuat pada ketiga presisi untuk memastikan kompatibilitasnya dengan \textit{bitsandbytes}, terutama Moondream2 yang menggunakan implementasi model khusus.
+
+Konfigurasi BF16 yang tidak memenuhi batas memori pada Skenario 1 tetap dijalankan sebagai acuan mutu dengan sebagian bobot ditempatkan di RAM CPU (\textit{CPU offload}), yaitu dengan parameter \texttt{device\_map} bernilai \texttt{auto} pada pustaka \textit{Accelerate}. Bobot yang ditempatkan di RAM dipindahkan ke GPU saat dibutuhkan sehingga komputasi tetap berlangsung pada GPU dengan presisi BF16, dan jawaban dengan \textit{greedy decoding} tidak terpengaruh secara berarti oleh penempatan bobot tersebut. Hasilnya hanya digunakan sebagai acuan $\Delta OHR$ dan akurasi klasifikasi peran, bukan untuk menilai memori atau latensi, sehingga konfigurasi tersebut tetap dinyatakan tidak layak dijalankan pada GPU 8 GB.
+
+Resolusi masukan tidak dapat disamakan karena setiap model memiliki enkoder visual dan cara pemrosesan citra yang berbeda. Oleh karena itu, resolusi ditetapkan per model dan dijaga tetap pada ketiga presisi, sebagaimana disajikan pada Tabel \ref{tab:resolusi}. Pengaturan Qwen2.5-VL dan InternVL2.5 dipilih agar jumlah token visualnya setara, yaitu sekitar 256 token, sedangkan PaliGemma 2 dan Moondream2 menggunakan resolusi bawaannya. Jumlah token visual memengaruhi ukuran KV \textit{cache} sehingga dicatat sebagai faktor dalam analisis memori dan latensi.
+
+\begin{table}[H]
+    \centering
+    \caption{Pengaturan Resolusi Masukan VLM}
+    \label{tab:resolusi}
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{|p{3.4cm}|p{2.6cm}|p{4.4cm}|c|}
+    \hline
+    \textbf{Model} & \textbf{Resolusi} & \textbf{Pengaturan} & \textbf{Token Visual} \\
+    \hline
+    PaliGemma 2 3B (\textit{mix}) & 448 $\times$ 448 & Varian 448 (resolusi tetap) & 1.024 \\
+    \hline
+    Qwen2.5-VL-3B-Instruct & $\pm$448 $\times$ 448 (rasio aspek asli) & \texttt{min\_pixels} = \texttt{max\_pixels} = 448 $\times$ 448 & $\pm$256 \\
+    \hline
+    InternVL2.5 4B & 448 $\times$ 448 & Satu \textit{tile} (\texttt{max\_num} = 1) & 256 \\
+    \hline
+    Moondream2 & 378 $\times$ 378 & Bawaan revisi model yang digunakan & 729 \\
+    \hline
+    \end{tabular}
+\end{table}
+
 \section{Skenario Pengujian}
+\label{sec:skenario}
 Pengujian dilakukan melalui tiga skenario yang masing-masing menjawab satu rumusan masalah, dengan pengaturan seragam berupa \textit{greedy decoding}, \textit{batch} satu, jumlah token keluaran terbatas, dan resolusi citra seragam. Setiap konfigurasi menjalani kueri pemanasan (\textit{warm-up}) sebelum pengukuran, dan jejak memori puncak diukur melalui NVML (\texttt{pynvml}) dikurangi \textit{baseline} kondisi \textit{idle}. Pengukuran dijalankan melalui sesi SSH tanpa lingkungan desktop agar VRAM tidak terpakai, dengan VRAM yang dapat dipakai aplikasi sekitar 7,5 GiB dari 8 GB nominal karena $\pm$461 MiB dicadangkan \textit{driver}. Memori dilaporkan dalam GiB (1 GiB = $2^{30}$ byte), sedangkan estimasi bobot pada Tabel \ref{tab:model} dalam GB (1 GB = $10^{9}$ byte). Kestabilan dan keandalan konfigurasi menjadi dasar keputusan setiap skenario, yaitu apakah konfigurasi dapat diuji lebih lanjut dan mana yang paling stabil, dengan batas keputusan pada Tabel \ref{tab:standar}.
+
+% REVISI R7: aturan parsing jawaban ditambahkan
+Jawaban setiap model diproses dengan aturan \textit{parsing} yang sama. Jawaban diubah menjadi huruf kecil dan tanda bacanya dihapus, lalu kata pertamanya dipetakan: \textit{yes} atau \textit{ya} menjadi ``Ya'', serta \textit{no} atau \textit{tidak} menjadi ``Tidak''. Jawaban dengan kata pertama di luar keempat kata tersebut, termasuk jawaban kosong, dinyatakan tidak valid. Jawaban tidak valid tidak dimasukkan ke matriks konfusi, tetapi proporsinya dilaporkan terpisah dan dinilai terhadap batas jawaban valid pada Tabel \ref{tab:standar}. Dengan cara ini, model yang tidak mematuhi format jawaban tidak tampak lebih sering berhalusinasi, sedangkan ketidakpatuhan tersebut tetap tercatat.
 %
 % OPSIONAL (usulan, tanyakan pembimbing dulu; hapus tanda % pada baris berikut bila disetujui):
 % Frekuensi \textit{clock} GPU dikunci pada 2092 MHz agar seluruh konfigurasi diukur pada kondisi termal yang sama.
@@ -232,19 +324,23 @@ Pengujian dilakukan melalui tiga skenario yang masing-masing menjawab satu rumus
     \textbf{No} & \textbf{Pengujian} & \textbf{Indikator} & \textbf{Batas} & \textbf{Keputusan} \\
     \hline
     \endhead
-    1 & \multirow{3}{*}{Skenario 1} & Kejadian OOM & Maksimum 0 kejadian pada seluruh kueri. & Jika terlampaui, konfigurasi tidak stabil dan tidak diuji pada Skenario 2 dan 3. \\*
+    % REVISI R7 (semula): 1 & \multirow{3}{*}{Skenario 1} & Kejadian OOM & Maksimum 0 kejadian pada seluruh kueri. & Jika terlampaui, konfigurasi tidak stabil dan tidak diuji pada Skenario 2 dan 3. \\*
+    1 & \multirow{3}{*}{Skenario 1} & Kejadian OOM & Maksimum 0 kejadian pada seluruh kueri. & Jika terlampaui, konfigurasi tidak stabil dan tidak diuji pada Skenario 2 dan 3, kecuali BF16 yang dijalankan dengan \textit{CPU offload} sebagai acuan mutu. \\*
     \cline{1-1}\cline{3-5}
     2 & & Jejak memori puncak & Maksimum 90\% VRAM yang dapat dipakai aplikasi ($\pm$6,75 GiB dari $\pm$7,5 GiB). & Sama dengan kejadian OOM; yang paling stabil memiliki cadangan memori (VRAM dikurangi memori puncak) terbesar. \\*
     \cline{1-1}\cline{3-5}
-    3 & & Latensi rata-rata & Maksimum 1.000 ms per kueri. & Sama dengan kejadian OOM; pembanding bila cadangan memori sama. \\
+    % REVISI R7 (semula): 3 & & Latensi rata-rata & Maksimum 1.000 ms per kueri. & Sama dengan kejadian OOM; pembanding bila cadangan memori sama. \\
+    3 & & Latensi rata-rata & Acuan 1.000 ms per kueri. & Tidak menggugurkan konfigurasi; dilaporkan sebagai pembanding dan penentu peringkat bila cadangan memori sama. \\
     \hline
-    4 & \multirow{3}{*}{Skenario 2} & Jawaban valid & Minimum 95\% jawaban dapat dipetakan ke ``Ya'' atau ``Tidak''. & Jawaban tidak valid dihitung salah; di bawah batas, hasil ditandai tidak andal. \\*
+    % REVISI R7 (semula): ... & Jawaban tidak valid dihitung salah; di bawah batas, hasil ditandai tidak andal. \\*
+    4 & \multirow{3}{*}{Skenario 2} & Jawaban valid & Minimum 95\% jawaban dapat dipetakan ke ``Ya'' atau ``Tidak''. & Jawaban tidak valid dilaporkan terpisah dan tidak masuk matriks konfusi; di bawah batas, hasil ditandai tidak andal. \\*
     \cline{1-1}\cline{3-5}
     5 & & OHR (rata-rata tiga strategi POPE) & Maksimum 10\%. & Jika terlampaui, konfigurasi tidak andal terhadap halusinasi objek. \\*
     \cline{1-1}\cline{3-5}
     6 & & $\Delta OHR$ terhadap BF16 & Maksimum 2 poin persentase. & Jika terlampaui, kuantisasi meningkatkan halusinasi secara berarti. \\
     \hline
-    7 & \multirow{2}{*}{Skenario 3} & Jawaban valid & Minimum 95\% jawaban dapat dipetakan ke ``Ya'' atau ``Tidak''. & Jawaban tidak valid dihitung salah; di bawah batas, hasil ditandai tidak andal. \\*
+    % REVISI R7 (semula): ... & Jawaban tidak valid dihitung salah; di bawah batas, hasil ditandai tidak andal. \\*
+    7 & \multirow{2}{*}{Skenario 3} & Jawaban valid & Minimum 95\% jawaban dapat dipetakan ke ``Ya'' atau ``Tidak''. & Jawaban tidak valid dilaporkan terpisah dan tidak masuk matriks konfusi; di bawah batas, hasil ditandai tidak andal. \\*
     \cline{1-1}\cline{3-5}
     8 & & \textit{Accuracy} dan F1-\textit{score} kelas pegawai & Minimum 80\% untuk keduanya. & Jika di bawah batas, belum layak untuk klasifikasi peran. \\
     \hline
@@ -252,13 +348,16 @@ Pengujian dilakukan melalui tiga skenario yang masing-masing menjawab satu rumus
 }
 
 \subsection{Skenario 1: Uji Memori dan Latensi}
-Skenario ini menjawab rumusan masalah pertama dengan mengukur kestabilan setiap konfigurasi VLM pada GPU 8 GB. Setiap konfigurasi dimuat pada GPU, lalu diberi rangkaian kueri dengan panjang urutan token yang bertambah untuk memicu pertumbuhan KV \textit{cache}. Selama pengujian dicatat jejak memori puncak, status OOM, dan latensi rata-rata (Persamaan \ref{eq:lat}). Konfigurasi yang melampaui satu batas pada Tabel \ref{tab:standar} dinyatakan tidak stabil dan tidak diuji pada Skenario 2 dan 3. Di antara konfigurasi yang stabil, yang paling stabil ditentukan dari cadangan memori terbesar, lalu latensi terendah.
+% REVISI R7 (semula): Setiap konfigurasi dimuat pada GPU, lalu diberi rangkaian kueri dengan panjang urutan token yang bertambah untuk memicu pertumbuhan KV \textit{cache}. ... Konfigurasi yang melampaui satu batas pada Tabel \ref{tab:standar} dinyatakan tidak stabil dan tidak diuji pada Skenario 2 dan 3.
+Skenario ini menjawab rumusan masalah pertama dengan mengukur kestabilan setiap konfigurasi VLM pada GPU 8 GB. Setiap konfigurasi dimuat pada GPU, lalu diberi rangkaian kueri sesuai beban tugas sebenarnya, yaitu citra atau \textit{crop} pada resolusi Tabel \ref{tab:resolusi} beserta kueri POPE dan kueri peran, sehingga panjang urutan token dan pertumbuhan KV \textit{cache} mencerminkan kondisi pemakaian. Selama pengujian dicatat jejak memori puncak, status OOM, dan latensi rata-rata (Persamaan \ref{eq:lat}). Konfigurasi yang mengalami OOM atau melampaui batas memori pada Tabel \ref{tab:standar} dinyatakan tidak stabil, sedangkan latensi hanya menjadi pembanding dan tidak menggugurkan konfigurasi. Konfigurasi terkuantisasi yang tidak stabil tidak diuji pada Skenario 2 dan 3, sedangkan konfigurasi BF16 yang tidak stabil tetap dijalankan sebagai acuan mutu dengan \textit{CPU offload} (Subbab \ref{sec:persiapan}). Di antara konfigurasi yang stabil, yang paling stabil ditentukan dari cadangan memori terbesar, lalu latensi terendah.
 
 \subsection{Skenario 2: Uji Halusinasi Objek}
-Skenario ini menjawab rumusan masalah kedua dengan mengukur tingkat halusinasi objek dan pengaruh kuantisasinya pada setiap konfigurasi yang stabil. Setiap konfigurasi menjawab seluruh kueri POPE yang disusun dari data uji, lalu jawabannya dibandingkan dengan anotasi untuk mengisi matriks konfusi. Dari matriks tersebut dihitung OHR (Persamaan \ref{eq:ohr}) serta \textit{accuracy}, \textit{precision}, \textit{recall}, dan F1 untuk strategi \textit{random}, \textit{popular}, dan \textit{adversarial}. Pengaruh kuantisasi dihitung sebagai $\Delta OHR$ (Persamaan \ref{eq:dohr}) dengan BF16 sebagai acuan, dan dilaporkan sebagai keterbatasan bila BF16 model terkait tidak stabil pada Skenario 1. Hasil dinilai terhadap batas OHR dan $\Delta OHR$ pada Tabel \ref{tab:standar}.
+% REVISI R7 (semula): Pengaruh kuantisasi dihitung sebagai $\Delta OHR$ (Persamaan \ref{eq:dohr}) dengan BF16 sebagai acuan, dan dilaporkan sebagai keterbatasan bila BF16 model terkait tidak stabil pada Skenario 1.
+Skenario ini menjawab rumusan masalah kedua dengan mengukur tingkat halusinasi objek dan pengaruh kuantisasinya pada setiap konfigurasi yang stabil. Setiap konfigurasi menjawab seluruh kueri POPE yang disusun dari data uji, lalu jawabannya dibandingkan dengan anotasi untuk mengisi matriks konfusi. Dari matriks tersebut dihitung OHR (Persamaan \ref{eq:ohr}) serta \textit{accuracy}, \textit{precision}, \textit{recall}, dan F1 untuk strategi \textit{random}, \textit{popular}, dan \textit{adversarial}. Pengaruh kuantisasi dihitung sebagai $\Delta OHR$ (Persamaan \ref{eq:dohr}) dengan BF16 sebagai acuan. Untuk model yang konfigurasi BF16-nya tidak stabil pada Skenario 1, acuan diperoleh dari BF16 yang dijalankan dengan \textit{CPU offload} (Subbab \ref{sec:persiapan}). Hasil dinilai terhadap batas OHR dan $\Delta OHR$ pada Tabel \ref{tab:standar}.
 
 \subsection{Skenario 3: Uji Klasifikasi Peran}
-Skenario ini menjawab rumusan masalah ketiga dengan mengukur akurasi setiap konfigurasi VLM yang stabil dalam membedakan pegawai dan pelanggan pada \textit{frame} tunggal. YOLO11n dan ByteTrack mendeteksi setiap orang pada \textit{frame} uji, lalu VLM menerima \textit{crop} setiap orang dan menjawab kueri ``Apakah orang ini adalah pegawai tempat usaha ini? Jawab hanya dengan Ya atau Tidak.'' Jawaban ``Ya'' dipetakan ke kelas pegawai dan ``Tidak'' ke kelas pelanggan. Jawaban tersebut dibandingkan dengan anotasi peran untuk menghitung \textit{accuracy}, \textit{precision}, \textit{recall}, dan F1 (Persamaan \ref{eq:acc} hingga \ref{eq:f1}) dengan pegawai sebagai kelas positif. Hasil dinilai terhadap batas minimum \textit{accuracy} dan F1 pada Tabel \ref{tab:standar}.
+% REVISI R7 (semula): ...lalu VLM menerima \textit{crop} setiap orang dan menjawab kueri ``Apakah orang ini adalah pegawai tempat usaha ini? Jawab hanya dengan Ya atau Tidak.'' Jawaban ``Ya'' dipetakan ke kelas pegawai dan ``Tidak'' ke kelas pelanggan.
+Skenario ini menjawab rumusan masalah ketiga dengan mengukur akurasi setiap konfigurasi VLM yang stabil dalam membedakan pegawai dan pelanggan pada \textit{frame} tunggal. YOLO11n dan ByteTrack mendeteksi setiap orang pada \textit{frame} uji, lalu VLM menerima \textit{crop} setiap orang dan menjawab kueri berbahasa Inggris ``\textit{Is this person an employee of this business? Answer with Yes or No only.}'' yang dibungkus dengan format masukan bawaan setiap model seperti pada kueri POPE. Jawaban yang dipetakan ke ``Ya'' menunjukkan kelas pegawai, sedangkan ``Tidak'' menunjukkan kelas pelanggan. Konfigurasi BF16 yang tidak stabil pada Skenario 1 juga dijalankan dengan \textit{CPU offload} sebagai acuan akurasi. Jawaban tersebut dibandingkan dengan anotasi peran untuk menghitung \textit{accuracy}, \textit{precision}, \textit{recall}, dan F1 (Persamaan \ref{eq:acc} hingga \ref{eq:f1}) dengan pegawai sebagai kelas positif. Hasil dinilai terhadap batas minimum \textit{accuracy} dan F1 pada Tabel \ref{tab:standar}.
 
 \section{Analisis Data}
 Hasil setiap skenario disajikan dalam tabel dan grafik agar perbandingan antarkonfigurasi mudah diamati. Untuk rumusan masalah pertama dan kedua, jejak memori, latensi, dan $\Delta OHR$ setiap konfigurasi dipetakan dalam grafik kompromi antara memori dan halusinasi. Grafik ini dipakai bersama batas pada Tabel \ref{tab:standar} untuk mengidentifikasi konfigurasi yang paling stabil dan seimbang. Untuk rumusan masalah ketiga, akurasi klasifikasi peran dibandingkan antarkonfigurasi, dan perbedaan akurasi satu VLM antarpresisi diuji dengan uji McNemar karena kedua presisi diuji pada sampel yang sama dengan keputusan biner. Seluruh hasil kemudian disintesis untuk menentukan VLM dan presisi yang paling stabil pada GPU berkapasitas terbatas.

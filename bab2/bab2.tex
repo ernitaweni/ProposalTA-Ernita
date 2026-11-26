@@ -129,6 +129,10 @@ Keempat VLM yang diuji merupakan variabel bebas pertama, mewakili keluarga model
     Moondream2 & SigLIP & Phi-1.5 & $\pm$1,9B & 3,8 & 1,9 & 1,0 \\
     \hline
     \end{tabular}
+
+    % REVISI R7: catatan estimasi ditambahkan (enkoder visual dan proyektor tetap BF16)
+    \vspace{1ex}
+    {\footnotesize Catatan: estimasi INT8 dan NF4 mengasumsikan seluruh parameter dikuantisasi. Karena enkoder visual dan proyektor dipertahankan pada BF16 (Subbab \ref{sec:persiapan}), kebutuhan aktualnya lebih besar, terutama pada NF4.\par}
 \end{table}
 
 \subsection{Presisi dan Kuantisasi Bobot: BF16, INT8, dan NF4}
